@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0c0e">
+  <title>cyro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg-oled: #0b0c0e;
+      --surface-card: rgba(255, 255, 255, 0.04);
+      --surface-card-hover: rgba(255, 255, 255, 0.07);
+      --surface-icon: rgba(255, 255, 255, 0.05);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255, 255, 255, 0.60);
+      --text-tertiary: rgba(255, 255, 255, 0.36);
+      --border-base: rgba(255, 255, 255, 0.12);
+      --border-top-accent: rgba(255, 255, 255, 0.18);
+      --border-seam-soft: rgba(255, 255, 255, 0.08);
+      --segment-outer: 22px;
+      --segment-inner: 5px;
+      --segment-gap: 1.5px;
+      --spring-easing: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100dvh;
+      background-color: var(--bg-oled);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 18px;
+      position: relative;
+    }
+
+    /* Subtle monochromatic top light falloff — zero neon colors */
+    body::before {
+      content: "";
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 520px;
+      height: 320px;
+      background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.035) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .hub-container {
+      width: 100%;
+      max-width: 400px;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: hubReveal 0.65s var(--smooth-out) both;
+    }
+
+    @keyframes hubReveal {
+      from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.99);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .avatar-plate {
+       --mouse-x: 50%;
+      --mouse-y: 0%;
+      --glare-opacity: 0;
+      width: 76px;
+      height: 76px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.045);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 0.5px solid var(--border-base);
+      border-top-color: var(--border-top-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+      margin-bottom: 18px;
+      transition: transform 0.28s var(--spring-easing), background-color 0.25s ease;
+    }
+
+    .avatar-plate::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        circle 65px at var(--mouse-x) var(--mouse-y),
+        rgba(255, 255, 255, 0.18),
+        transparent 70%
+      );
+      opacity: var(--glare-opacity, 0);
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .avatar-plate::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.16);
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .avatar-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: inherit;
+      z-index: 2;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+    }
+
+    .avatar-plate.has-avatar .avatar-image {
+      opacity: 1;
+    }
+
+    .avatar-plate.has-avatar .avatar-monogram {
+      opacity: 0;
+    }
+
+    .avatar-monogram {
+      font-size: 30px;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      color: var(--text-primary);
+      line-height: 1;
+      position: relative;
+      z-index: 1;
+      transition: opacity 0.25s ease;
+    }
+
+    .identity-header {
+      text-align: center;
+      margin-bottom: 28px;
+      user-select: none;
+    }
+
+    .identity-title {
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+      line-height: 1.15;
+      margin-bottom: 6px;
+    }
+
+    .identity-subtitle {
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .segmented-group {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: var(--segment-gap);
+      position: relative;
+      touch-action: none;
+    }
+
+    .glass-segment {
+      --mouse-x: 50%;
+      --mouse-y: 50%;
+      --glare-opacity: 0;
+      position: relative;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px;
+      background-color: var(--surface-card);
+      color: var(--text-primary);
+      text-decoration: none;
+      border-style: solid;
+      border-width: 0.5px;
+      border-color: var(--border-base);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      overflow: hidden;
+      outline: none;
+      text-align: left;
+      font-family: inherit;
+      transform: translateZ(0) scale(1);
+      transition:
+        transform 0.16s var(--spring-easing),
+        background-color 0.22s ease,
+        border-color 0.22s ease;
+    }
+
+    /* Top card (Telegram): 22px outer top, 5px inner bottom */
+    .glass-segment.segment-top {
+      border-radius: var(--segment-outer) var(--segment-outer) var(--segment-inner) var(--segment-inner);
+      border-top-color: var(--border-top-accent);
+      border-bottom-color: var(--border-seam-soft);
+    }
+
+    /* Bottom card (Discord): 5px inner top, 22px outer bottom */
+    .glass-segment.segment-bottom {
+      border-radius: var(--segment-inner) var(--segment-inner) var(--segment-outer) var(--segment-outer);
+      border-top-color: var(--border-seam-soft);
+      border-bottom-color: rgba(255, 255, 255, 0.14);
+    }
+
+    /* Hover & Focus states */
+    @media (hover: hover) {
+      body:not(.is-scrubbing) .glass-segment:hover {
+        background-color: var(--surface-card-hover);
+      }
+    }
+
+    .glass-segment:focus-visible {
+      border-color: rgba(255, 255, 255, 0.45);
+      background-color: var(--surface-card-hover);
+    }
+
+    .glass-segment.is-pressed {
+      transform: scale(0.96);
+      background-color: var(--surface-card-hover);
+    }
+
+    /* Specular Glare — Surface radial light beam (::before) */
+    .glass-segment::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: radial-gradient(
+        circle 180px at var(--mouse-x) var(--mouse-y),
+        rgba(255, 255, 255, 0.14),
+        transparent 60%
+      );
+      opacity: var(--glare-opacity, 0);
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .glass-segment::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 0.5px;
+      background: radial-gradient(
+        circle 130px at var(--mouse-x) var(--mouse-y),
+        rgba(255, 255, 255, 0.55),
+        transparent 60%
+      );
+      -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: var(--glare-opacity, 0);
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .segment-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: relative;
+      z-index: 2;
+      min-width: 0;
+    }
+
+    .icon-well {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background-color: var(--surface-icon);
+      border: 0.5px solid rgba(255, 255, 255, 0.10);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--text-primary);
+      transition: background-color 0.22s ease, border-color 0.22s ease;
+    }
+
+    body:not(.is-scrubbing) .glass-segment:hover .icon-well,
+    .glass-segment.is-pressed .icon-well {
+      background-color: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .segment-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .segment-platform {
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.015em;
+      color: var(--text-primary);
+      line-height: 1.25;
+    }
+
+    .segment-handle {
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: -0.005em;
+      color: var(--text-secondary);
+      line-height: 1.25;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .segment-right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 2;
+      color: var(--text-tertiary);
+      transition: color 0.22s ease, transform 0.22s var(--smooth-out);
+      width: 28px;
+      height: 28px;
+    }
+
+    body:not(.is-scrubbing) .glass-segment:hover .segment-right,
+    .glass-segment.is-pressed .segment-right {
+      color: var(--text-secondary);
+    }
+
+    body:not(.is-scrubbing) .glass-segment.segment-top:hover .chevron-icon,
+    .glass-segment.segment-top.is-pressed .chevron-icon {
+      transform: translateX(2px);
+    }
+
+    .chevron-icon {
+      transition: transform 0.22s var(--smooth-out);
+    }
+
+    .copy-icon,
+    .check-icon {
+      position: absolute;
+      transition: opacity 0.22s ease, transform 0.26s var(--spring-easing);
+    }
+
+    .check-icon {
+      opacity: 0;
+      transform: scale(0.6);
+      color: var(--text-primary);
+    }
+
+    .is-copied .copy-icon {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+
+    .is-copied .check-icon {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .toast-viewport {
+      position: fixed;
+      bottom: max(28px, env(safe-area-inset-bottom, 28px));
+      left: 50%;
+      transform: translate3d(-50%, 20px, 0) scale(0.94);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 50;
+      transition:
+        transform 0.34s var(--spring-easing),
+        opacity 0.24s ease;
+      will-change: transform, opacity;
+      max-width: calc(100vw - 32px);
+    }
+
+    .toast-viewport.is-visible {
+      transform: translate3d(-50%, 0, 0) scale(1);
+      opacity: 1;
+    }
+
+    .glass-toast {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 16px;
+      border-radius: 999px;
+      background: rgba(22, 23, 27, 0.72);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 0.5px solid rgba(255, 255, 255, 0.16);
+      border-top-color: rgba(255, 255, 255, 0.24);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 450;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .toast-badge {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.12);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+
+      .glass-segment:active,
+      .glass-segment.is-pressed {
+        transform: none !important;
+      }
+
+      .glass-segment::before,
+      .glass-segment::after,
+      .avatar-plate::before {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="hub-container" aria-label="Персональная визитка cyro">
+    <!-- Telegram Avatar with Glass Specular Sheen -->
+    <div class="avatar-plate js-glare-target" id="avatarPlate" aria-hidden="true">
+      <span class="avatar-monogram">C</span>
+      <img
+        id="tgAvatar"
+        class="avatar-image"
+        src="https://t.me/i/userpic/320/cyro_4ki.jpg"
+        alt="Аватар cyro"
+        loading="eager"
+        decoding="async"
+        referrerpolicy="no-referrer"
+      />
+    </div>
+
+    <!-- Identity Header -->
+    <header class="identity-header">
+      <h1 class="identity-title">cyro</h1>
+      <p class="identity-subtitle" id="ekbClock" aria-label="Текущее время в Екатеринбурге">ЕКБ · --:--:--</p>
+    </header>
+
+    <!-- YDS 2.1 Segmented Glass Stack (1.5px physical gap, zero <hr> dividers) -->
+    <nav class="segmented-group" id="segmentedGroup" aria-label="Социальные сети и контакты">
+      <a
+        id="telegramCard"
+        href="https://t.me/cyro_4ki"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="glass-segment segment-top js-glare-target"
+        aria-label="Telegram @cyro_4ki — открыть в новой вкладке"
+      >
+        <div class="segment-left">
+          <div class="icon-well" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M20.665 3.717L2.935 10.554C1.725 11.04 1.732 11.715 2.713 12.016L7.265 13.436L17.797 6.791C18.295 6.488 18.75 6.651 18.376 6.983L9.843 14.684H9.841L9.843 14.685L9.529 19.377C9.989 19.377 10.192 19.166 10.45 18.917L12.661 16.767L17.26 20.164C18.108 20.631 18.717 20.391 18.928 19.379L21.947 5.151C22.256 3.912 21.474 3.351 20.665 3.717Z"
+                fill="currentColor"
+              />
+            </svg>
+          </div>
+          <div class="segment-meta">
+            <span class="segment-platform">Telegram</span>
+            <span class="segment-handle">@cyro_4ki</span>
+          </div>
+        </div>
+
+        <div class="segment-right" aria-hidden="true">
+          <svg class="chevron-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </div>
+      </a>
+
+      <button
+        type="button"
+        id="discordCard"
+        data-copy="@cyro_w0w"
+        class="glass-segment segment-bottom js-glare-target"
+        aria-label="Discord @cyro_w0w — скопировать тег в буфер обмена"
+      >
+        <div class="segment-left">
+          <div class="icon-well" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M19.27 5.33C17.94 4.71 16.5 4.26 15 4C14.82 4.33 14.6 4.77 14.45 5.12C12.87 4.88 11.3 4.88 9.75 5.12C9.6 4.77 9.37 4.33 9.19 4C7.68 4.26 6.24 4.71 4.91 5.33C2.2 9.41 1.46 13.38 1.83 17.3C3.62 18.63 5.36 19.44 7.07 19.97C7.5 19.39 7.87 18.77 8.19 18.11C7.58 17.88 6.99 17.6 6.44 17.27C6.59 17.16 6.73 17.04 6.87 16.92C10.24 18.49 13.9 18.49 17.23 16.92C17.37 17.04 17.51 17.16 17.66 17.27C17.1 17.6 16.51 17.88 15.9 18.11C16.22 18.77 16.6 19.39 17.02 19.97C18.74 19.44 20.48 18.63 22.27 17.3C22.7 12.75 21.53 8.81 19.27 5.33ZM8.68 14.89C7.65 14.89 6.8 13.93 6.8 12.76C6.8 11.59 7.63 10.63 8.68 10.63C9.73 10.63 10.58 11.59 10.56 12.76C10.56 13.93 9.73 14.89 8.68 14.89ZM15.42 14.89C14.39 14.89 13.54 13.93 13.54 12.76C13.54 11.59 14.37 10.63 15.42 10.63C16.47 10.63 17.32 11.59 17.3 12.76C17.3 13.93 16.47 14.89 15.42 14.89Z"
+                fill="currentColor"
+              />
+            </svg>
+          </div>
+          <div class="segment-meta">
+            <span class="segment-platform">Discord</span>
+            <span class="segment-handle">@cyro_w0w</span>
+          </div>
+        </div>
+
+        <div class="segment-right" aria-hidden="true">
+          <!-- Copy Icon -->
+          <svg class="copy-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="3" ry="3"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <!-- Checkmark Icon (shown on copy) -->
+          <svg class="check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+      </button>
+    </nav>
+  </main>
+
+  <div
+    id="toastViewport"
+    class="toast-viewport"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+  >
+    <div class="glass-toast">
+      <span class="toast-badge" aria-hidden="true">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </span>
+      <span id="toastMessage">Скопировано в буфер обмена: @cyro_w0w</span>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const glareTargets = document.querySelectorAll('.js-glare-target');
+      const segmentedGroup = document.getElementById('segmentedGroup');
+      const segments = document.querySelectorAll('.glass-segment');
+      const telegramCard = document.getElementById('telegramCard');
+      const discordCard = document.getElementById('discordCard');
+      const toastViewport = document.getElementById('toastViewport');
+      const toastMessage = document.getElementById('toastMessage');
+      const ekbClock = document.getElementById('ekbClock');
+      const avatarPlate = document.getElementById('avatarPlate');
+      const tgAvatar = document.getElementById('tgAvatar');
+
+      let toastTimer = null;
+      let iconTimer = null;
+
+      // Dynamic scrubbing state
+      let isScrubbing = false;
+      let initialSegment = null;
+      let activeSegment = null;
+      let didSwitchSegment = false;
+      let ignoreClickUntil = 0;
+
+      /**
+       * Live clock for Yekaterinburg (Asia/Yekaterinburg, UTC+5)
+       */
+      const ekbFormatter = new Intl.DateTimeFormat('ru-RU', {
+        timeZone: 'Asia/Yekaterinburg',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+
+      function updateEkbTime() {
+        if (!ekbClock) return;
+        ekbClock.textContent = `ЕКБ · ${ekbFormatter.format(new Date())}`;
+      }
+
+      updateEkbTime();
+      setInterval(updateEkbTime, 1000);
+
+      /**
+       * Telegram Avatar verification & fallback handler.
+       * Checks that Telegram returned a real profile image (naturalWidth > 1)
+       * and falls back to unavatar if needed.
+       */
+      if (tgAvatar && avatarPlate) {
+        let triedSecondary = false;
+
+        const handleAvatarLoad = () => {
+          if (tgAvatar.naturalWidth > 1 && tgAvatar.naturalHeight > 1) {
+            avatarPlate.classList.add('has-avatar');
+          } else if (!triedSecondary) {
+            triedSecondary = true;
+            tgAvatar.src = 'https://unavatar.io/telegram/cyro_4ki?fallback=false';
+          }
+        };
+
+        const handleAvatarError = () => {
+          if (!triedSecondary) {
+            triedSecondary = true;
+            tgAvatar.src = 'https://unavatar.io/telegram/cyro_4ki?fallback=false';
+          }
+        };
+
+        tgAvatar.addEventListener('load', handleAvatarLoad);
+        tgAvatar.addEventListener('error', handleAvatarError);
+
+        if (tgAvatar.complete && tgAvatar.naturalWidth > 0) {
+          handleAvatarLoad();
+        }
+      }
+
+      /**
+       * Finds which .glass-segment is currently directly underneath (clientX, clientY)
+       */
+      function getSegmentAtPoint(clientX, clientY) {
+        const hit = document.elementFromPoint(clientX, clientY);
+        return hit ? hit.closest('.glass-segment') : null;
+      }
+
+      /**
+       * Updates which button is visually pressed (.is-pressed) during touch/pointer slide
+       */
+      function setPressedSegment(nextSegment) {
+        if (activeSegment === nextSegment) return;
+
+        if (activeSegment) {
+          activeSegment.classList.remove('is-pressed');
+        }
+
+        activeSegment = nextSegment;
+
+        if (activeSegment) {
+          activeSegment.classList.add('is-pressed');
+        }
+      }
+
+      /**
+       * Updates CSS Custom Properties (--mouse-x, --mouse-y) for each glass element
+       * so the radial specular highlight seamlessly tracks cursor or touch coordinates.
+       */
+      function updateSpecularGlare(clientX, clientY) {
+        if (prefersReducedMotion.matches) return;
+
+        glareTargets.forEach((el) => {
+          const rect = el.getBoundingClientRect();
+          const x = clientX - rect.left;
+          const y = clientY - rect.top;
+
+          if (isScrubbing && el.classList.contains('glass-segment')) {
+            el.style.setProperty('--mouse-x', `${x.toFixed(1)}px`);
+            el.style.setProperty('--mouse-y', `${y.toFixed(1)}px`);
+            el.style.setProperty('--glare-opacity', el === activeSegment ? '1' : '0.18');
+            return;
+          }
+
+          const pad = 90;
+          const isNear =
+            clientX >= rect.left - pad &&
+            clientX <= rect.right + pad &&
+            clientY >= rect.top - pad &&
+            clientY <= rect.bottom + pad;
+
+          if (isNear) {
+            el.style.setProperty('--mouse-x', `${x.toFixed(1)}px`);
+            el.style.setProperty('--mouse-y', `${y.toFixed(1)}px`);
+            el.style.setProperty('--glare-opacity', '1');
+          } else {
+            el.style.setProperty('--glare-opacity', '0');
+          }
+        });
+      }
+
+      function clearSpecularGlare() {
+        glareTargets.forEach((el) => {
+          el.style.setProperty('--glare-opacity', '0');
+          el.classList.remove('is-pressed');
+        });
+      }
+
+      async function copyTextToClipboard(text) {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch (_) {
+            // Fallback below if Clipboard API is restricted by context
+          }
+        }
+
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.setAttribute('readonly', '');
+        textArea.style.position = 'fixed';
+        textArea.style.top = '-9999px';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+
+        let copied = false;
+        try {
+          copied = document.execCommand('copy');
+        } catch (_) {
+          copied = false;
+        }
+        document.body.removeChild(textArea);
+        return copied;
+      }
+
+      function showToast(tag) {
+        toastMessage.textContent = `Скопировано в буфер обмена: ${tag}`;
+        toastViewport.classList.add('is-visible');
+
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toastViewport.classList.remove('is-visible');
+        }, 2400);
+      }
+
+      async function triggerDiscordCopy() {
+        if (!discordCard) return;
+        const handle = discordCard.getAttribute('data-copy') || '@cyro_w0w';
+        await copyTextToClipboard(handle);
+
+        discordCard.classList.add('is-copied');
+        if (iconTimer) clearTimeout(iconTimer);
+        iconTimer = setTimeout(() => {
+          discordCard.classList.remove('is-copied');
+        }, 1800);
+
+        showToast(handle);
+      }
+
+      function triggerSegmentAction(segment) {
+        if (!segment) return;
+        if (segment === discordCard) {
+          triggerDiscordCopy();
+        } else if (segment === telegramCard) {
+          window.open(telegramCard.href, '_blank', 'noopener,noreferrer');
+        }
+      }
+
+      function startScrub(clientX, clientY) {
+        const target = getSegmentAtPoint(clientX, clientY);
+        if (!target) return;
+
+        isScrubbing = true;
+        initialSegment = target;
+        didSwitchSegment = false;
+        document.body.classList.add('is-scrubbing');
+
+        setPressedSegment(target);
+        updateSpecularGlare(clientX, clientY);
+      }
+
+      function moveScrub(clientX, clientY) {
+        if (!isScrubbing) {
+          updateSpecularGlare(clientX, clientY);
+          return;
+        }
+
+        const currentTarget = getSegmentAtPoint(clientX, clientY);
+        if (currentTarget !== activeSegment) {
+          didSwitchSegment = true;
+          setPressedSegment(currentTarget);
+        }
+        updateSpecularGlare(clientX, clientY);
+      }
+
+      function endScrub(isCancelled) {
+        if (!isScrubbing) return;
+
+        const chosenSegment = activeSegment;
+        const switched = didSwitchSegment;
+
+        isScrubbing = false;
+        initialSegment = null;
+        didSwitchSegment = false;
+        document.body.classList.remove('is-scrubbing');
+        setPressedSegment(null);
+
+        if (isCancelled) {
+          clearSpecularGlare();
+          return;
+        }
+
+        // If user dragged onto another button (or dragged away and back), execute the currently selected button
+        if (switched) {
+          ignoreClickUntil = performance.now() + 450;
+          if (chosenSegment) {
+            triggerSegmentAction(chosenSegment);
+          }
+        }
+      }
+
+      // Desktop mouse tracking & scrubbing
+      window.addEventListener(
+        'mousedown',
+        (e) => {
+          if (e.button !== 0) return;
+          startScrub(e.clientX, e.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener(
+        'mousemove',
+        (e) => {
+          moveScrub(e.clientX, e.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener(
+        'mouseup',
+        () => {
+          endScrub(false);
+        },
+        { passive: true }
+      );
+
+      document.addEventListener(
+        'mouseleave',
+        () => {
+          endScrub(true);
+          clearSpecularGlare();
+        },
+        { passive: true }
+      );
+
+      // Preventing native ghost drag of <a> link so mouse scrubbing works smoothly
+      segments.forEach((segment) => {
+        segment.addEventListener('dragstart', (e) => e.preventDefault());
+      });
+
+      // Mobile touch tracking & dynamic button switching
+      window.addEventListener(
+        'touchstart',
+        (e) => {
+          if (e.touches.length > 0) {
+            const touch = e.touches[0];
+            startScrub(touch.clientX, touch.clientY);
+          }
+        },
+        { passive: true }
+      );
+
+      window.addEventListener(
+        'touchmove',
+        (e) => {
+          if (e.touches.length > 0) {
+            const touch = e.touches[0];
+            moveScrub(touch.clientX, touch.clientY);
+          }
+        },
+        { passive: true }
+      );
+
+      window.addEventListener(
+        'touchend',
+        () => {
+          endScrub(false);
+          clearSpecularGlare();
+        },
+        { passive: true }
+      );
+
+      window.addEventListener(
+        'touchcancel',
+        () => {
+          endScrub(true);
+          clearSpecularGlare();
+        },
+        { passive: true }
+      );
+
+      // Intercept native clicks if action was already resolved via dynamic scrub
+      if (segmentedGroup) {
+        segmentedGroup.addEventListener(
+          'click',
+          (e) => {
+            if (performance.now() < ignoreClickUntil) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          },
+          true
+        );
+      }
+
+      if (discordCard) {
+        discordCard.addEventListener('click', () => {
+          if (performance.now() < ignoreClickUntil) return;
+          triggerDiscordCopy();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
